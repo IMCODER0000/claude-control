@@ -1,0 +1,9 @@
+# dependencies
+node_modules/
+
+# runtime data — secrets & history, never commit
+data/
+*.log
+
+# OS
+.DS_Store

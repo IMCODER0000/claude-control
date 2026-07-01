@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1a1a18" id="themeColor">
+<title>Claude Control</title>
+<link rel="stylesheet" href="/style.css">
+<script>try{if(localStorage.getItem('cc_theme')==='light'){document.documentElement.style.background='#f6f4ef';}}catch(e){}</script>
+</head>
+<body>
+  <div id="login">
+    <form class="card" id="loginForm">
+      <div class="login-logo">C</div>
+      <h1>Claude Control</h1>
+      <p>맥북의 Claude를 원격으로 조종합니다.</p>
+      <input id="uid" type="text" placeholder="아이디" autocomplete="username" autofocus>
+      <input id="pw" type="password" placeholder="비밀번호" autocomplete="current-password">
+      <button type="submit">로그인</button>
+      <div class="err" id="loginErr"></div>
+    </form>
+  </div>
+
+  <div id="app">
+    <div id="backdrop"></div>
+    <aside id="sidebar">
+      <div class="side-head">
+        <div class="logo">C</div>
+        <b>Claude Control</b>
+        <button class="icon-btn" id="themeBtn" title="테마 전환" aria-label="테마 전환">◐</button>
+        <button class="icon-btn" id="logoutBtn" title="로그아웃" aria-label="로그아웃">⏻</button>
+      </div>
+      <button id="newBtn"><span>＋</span> 새 세션</button>
+      <button id="filesBtn" class="side-btn">🗂 파일 탐색기</button>
+      <div id="sessionList"></div>
+    </aside>
+
+    <section id="main">
+      <div id="topbar">
+        <button class="menu-btn" id="menuBtn" aria-label="세션 목록">☰</button>
+        <span class="eng-badge" id="engBadge"></span>
+        <div class="title" id="curTitle">세션을 선택하세요</div>
+        <span class="conn" id="conn" title="연결 상태"></span>
+        <span class="cwd" id="curCwd" title="작업 폴더 변경"></span>
+        <button class="sid" id="curId" title="세션 ID 복사 (claude --resume)"></button>
+        <select id="modelSel" title="모델"></select>
+      </div>
+
+      <div id="chat"><div class="wrap" id="chatWrap">
+        <div class="empty"><div class="ico">✦</div><div class="big">세션을 만들어 시작하세요</div>왼쪽 "＋ 새 세션" 버튼을 누르세요.</div>
+      </div></div>
+      <button id="toBottom" aria-label="맨 아래로">↓</button>
+
+      <div id="composer"><div class="wrap">
+        <div class="input-box">
+          <textarea id="input" rows="1" placeholder="맥북에게 시킬 일을 입력하세요…  (Enter 전송, Shift+Enter 줄바꿈)"></textarea>
+        </div>
+        <button id="sendBtn" title="전송">↑</button>
+      </div>
+      <div class="hint" id="hint">권한 확인 없이 실행됩니다 (bypassPermissions). 신뢰하는 명령만 입력하세요.</div>
+      </div>
+    </section>
+  </div>
+
+  <div class="modal-overlay" id="modal">
+    <div class="modal" role="dialog" aria-modal="true">
+      <h3 class="modal-title" id="modalTitle"></h3>
+      <p class="modal-msg" id="modalMsg"></p>
+      <input class="modal-input" id="modalInput">
+      <div class="modal-actions">
+        <button class="modal-cancel" id="modalCancel">취소</button>
+        <button class="modal-ok" id="modalOk">확인</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="newModal">
+    <div class="modal" role="dialog" aria-modal="true">
+      <h3 class="modal-title">새 세션</h3>
+      <div class="field">
+        <label>계정 / AI <button type="button" class="link-btn" id="manageProfiles">관리</button></label>
+        <div class="model-select"><select id="newProfile"></select></div>
+        <div class="eng-note" id="engNote"></div>
+      </div>
+      <div class="field">
+        <label>모델</label>
+        <div class="model-select"><select id="newModel"></select></div>
+      </div>
+      <div class="field">
+        <label>작업 폴더</label>
+        <div class="folder-row">
+          <input class="modal-input" id="newCwd" placeholder="~" style="margin:0">
+          <button class="exp-btn" id="newBrowse" type="button">찾아보기</button>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="modal-cancel" id="newCancel">취소</button>
+        <button class="modal-ok" id="newOk">만들기</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="profModal">
+    <div class="modal wide" role="dialog" aria-modal="true">
+      <h3 class="modal-title">계정 / 프로필 관리</h3>
+      <p class="modal-msg">AI별로 계정(로그인 폴더 또는 API 키)을 등록해두면 세션마다 골라 쓸 수 있습니다.</p>
+      <div class="prof-list" id="profList"></div>
+      <button class="exp-btn" id="profAdd" style="width:100%;margin-top:4px">＋ 새 프로필</button>
+
+      <div class="prof-form" id="profForm">
+        <div class="field"><label>이름</label><input class="modal-input" id="pfName" placeholder="예: Claude 회사계정" style="margin:0"></div>
+        <div class="field"><label>AI 엔진</label><div class="seg" id="pfEngSeg"></div></div>
+        <div class="field"><label>인증 방식</label><div class="seg" id="pfAuthSeg"></div></div>
+        <div class="field" id="pfDirField">
+          <label>설정 폴더 <span class="sub-label">(계정별 로그인 저장 위치 · 비우면 기본 계정)</span></label>
+          <div class="folder-row"><input class="modal-input" id="pfDir" placeholder="비우면 CLI 기본 계정 사용" style="margin:0"><button class="exp-btn" id="pfBrowse" type="button">찾아보기</button></div>
+        </div>
+        <div class="field" id="pfKeyField">
+          <label>API 키</label>
+          <input class="modal-input" id="pfKey" placeholder="sk-... (수정 시 비워두면 기존 키 유지)" type="password" style="margin:0">
+        </div>
+        <div class="eng-note" id="pfHint"></div>
+        <div class="modal-actions">
+          <button class="modal-cancel" id="pfCancel">취소</button>
+          <button class="modal-ok" id="pfSave">저장</button>
+        </div>
+      </div>
+
+      <div class="modal-actions" id="profDoneRow">
+        <button class="modal-cancel" id="profDone">닫기</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="explorer">
+    <div class="explorer">
+      <div class="exp-head">
+        <button class="exp-btn" id="expUp" title="상위 폴더">↑</button>
+        <div class="exp-path" id="expPath"></div>
+        <label class="exp-toggle"><input type="checkbox" id="expHidden"> 숨김</label>
+        <button class="exp-btn pick" id="expPick">이 폴더 선택</button>
+        <button class="icon-btn" id="expClose" aria-label="닫기">✕</button>
+      </div>
+      <div class="exp-body">
+        <div class="exp-list" id="expList"></div>
+        <div class="exp-view" id="expView"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="toasts"></div>
+
+  <script src="/app.js"></script>
+</body>
+</html>
